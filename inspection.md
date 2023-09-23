@@ -7,13 +7,13 @@ Keep the backticks but remove the `${}`, so `${ITEM}` becomes `My Answer`.
 Unless otherwise specified, list the command and all arguments that you passed to it.
 
 ## Repository Configuration
-1. The `crazy_turtle` git repository consists of the ROS 2 packages `${pkg_name1}` and `${pkg_name2}`.
-2. The package `${pkg_name1}` is a `${build type of package}` package.
-2. The package `${pkg_name2}` is a `${build type of package}` package.
+1. The `crazy_turtle` git repository consists of the ROS 2 packages `crazy_turtle_interfaces` and `crazy_turtle`.
+2. The package `crazy_turtle_interfaces` is a `cmake` package.
+2. The package `$crazy_turtle` is a `python` package.
 
 
 ## Setup Instructions
-1. Build the workspace using `${insert command here}` so that it is unnecessary to rebuild when python files change.
+1. Build the workspace using `colcon build` so that it is unnecessary to rebuild when python files change.
 2. Initialize the ROS environment (i.e., set the necessary ROS environment variables) by executing `${insert command here}`
 3. Make sure no other ROS nodes are running prior to starting by inspecting the results of `${insert command here}`.
 3. Run the launchfile `go_crazy_turtle.launch.xml` by executing `${insert command here}`
