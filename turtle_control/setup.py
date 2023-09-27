@@ -14,12 +14,13 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='aawizard',
-    maintainer_email='agwananyaa2001@gmail.com',
+    maintainer_email='ananyaagarwal2024@u.northwestern.edu',
     description='TODO: Package description',
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'waypoint = turtle_control.waypoint:main'
         ],
     },
 )
