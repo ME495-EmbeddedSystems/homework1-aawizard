@@ -8,8 +8,11 @@
   <license>MIT</license>
 
 
-  <build_depend>rcply</build_depend>
+  <build_depend>rclpy</build_depend>
   <exec_depend>rclpy</exec_depend>
+
+  <build_depend>common_interfaces</build_depend>
+  <exec_depend>common_interfaces</exec_depend>
 
   <build_depend>turtlesim</build_depend>
   <exec_depend>turtlesim</exec_depend>

@@ -1,23 +1,43 @@
 import rclpy
 from rclpy.node import Node
-
+from std_srvs.srv import Empty
+from enum import Enum, auto
 from std_msgs.msg import String
 
+class State(Enum):
 
+    MOVING = auto(),
+    STOPPED = auto()
+    
 class Waypoint(Node):
 
     def __init__(self):
         super().__init__('waypointer')
-        frequency=100
-        timer_period = 1/frequency  # seconds
-        self.timer = self.create_timer(timer_period, self.timer_callback)
-        # self.i = 0
+        self.declare_parameter('frequency', 1)
+        self.freq = self.get_parameter('frequency').get_parameter_value().double_value
+        self.srv = self.create_service(Empty, 'toggle', self.toggle)
+        self.timer = self.create_timer(self.freq, self.timer_callback)
+        self.state=State.STOPPED   
 
+        
+        
+    def toggle(self):
+        if self.state==State.MOVING:
+            self.state=State.STOPPED
+            self.get_logger().info('Stopping')
+        else:
+            self.state=State.MOVING
+        
+    
+    
     def timer_callback(self):
         msg = String()
-        msg.data = 'Issuing Command!'
-        self.get_logger().debug('Publishing: "%s"' % msg.data)
-        # self.i += 1
+        if self.state==State.MOVING:
+            msg.data = 'Issuing Command!'
+            self.get_logger().debug('Publishing: "%s"' % msg.data)
+            
+        
+
 
 
 def main(args=None):
@@ -26,10 +46,6 @@ def main(args=None):
     waypoint_node = Waypoint()
 
     rclpy.spin(waypoint_node)
-
-    # Destroy the node explicitly
-    # (optional - otherwise it will be done automatically
-    # when the garbage collector destroys the node object)
     waypoint_node.destroy_node()
     rclpy.shutdown()
 
