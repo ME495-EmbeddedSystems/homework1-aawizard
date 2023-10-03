@@ -1,8 +1,14 @@
 import rclpy
 from rclpy.node import Node
 from std_srvs.srv import Empty
+from turtle_interfaces.srv import Waypoints
 from enum import Enum, auto
 from std_msgs.msg import String
+import numpy as np
+from turtlesim.srv import SetPen, TeleportAbsolute
+import asyncio
+from rclpy.callback_groups import  ReentrantCallbackGroup
+
 
 class State(Enum):
 
@@ -12,22 +18,94 @@ class State(Enum):
 class Waypoint(Node):
 
     def __init__(self):
-        super().__init__('waypointer')
-        self.declare_parameter('frequency', 1)
-        self.freq = self.get_parameter('frequency').get_parameter_value().double_value
-        self.srv = self.create_service(Empty, 'toggle', self.toggle)
-        self.timer = self.create_timer(self.freq, self.timer_callback)
-        self.state=State.STOPPED   
-
+        super().__init__('waypoint')
+        self.declare_parameter('frequency', 1) 
+        self.client_cb_group = ReentrantCallbackGroup()
+        self.freq       = self.get_parameter('frequency').get_parameter_value().double_value
+        self.toggle     = self.create_service(Empty, 'toggle', self.toggle_callback)
+        self.load       = self.create_service(Waypoints, 'load', self.load_callback)
+        self.timer      = self.create_timer(self.freq, self.timer_callback)
+        self.state      = State.STOPPED   
+        self.reset      = self.create_client(Empty, "reset",callback_group=self.client_cb_group)
+        self.setpen     = self.create_client(SetPen,'turtle1/set_pen',callback_group=self.client_cb_group)
+        self.teleabs    = self.create_client(TeleportAbsolute,'turtle1/teleport_absolute',callback_group=self.client_cb_group)
+        
+        if not self.reset.wait_for_service(timeout_sec=1.0):
+            raise RuntimeError('Timeout waiting for "reset" service to become available')
+        
+        if not self.setpen.wait_for_service(timeout_sec=1.0):
+            raise RuntimeError('Timeout waiting for "setpen" service to become available')
+        
+        if not self.teleabs.wait_for_service(timeout_sec=1.0):
+            raise RuntimeError('Timeout waiting for "teleport_absolute" service to become available')
+        
+    
+    async def draw_x(self,x,y):
+        #pen up
+        await self.setpen.call_async(SetPen.Request(off=1))
+        #take to lower left corner of the cross
+        await self.teleabs.call_async(TeleportAbsolute.Request(x=x-0.25,y=y-0.25))
+        #pen down
+        await self.setpen.call_async(SetPen.Request(off=0))
+        
+        #take to upper right corner of the cross
+        await self.teleabs.call_async(TeleportAbsolute.Request(x=x+0.25,y=y+0.25))
+        #pen up
+        await self.setpen.call_async(SetPen.Request(off=1))
+        
+        #take to lower right corner of the cross
+        await self.teleabs.call_async(TeleportAbsolute.Request(x=x+0.25,y=y-0.25))
+        #pen down
+        await self.setpen.call_async(SetPen.Request(off=0))
+        
+        #take to upper left corner of the cross
+        await self.teleabs.call_async(TeleportAbsolute.Request(x=x-0.25,y=y+0.25))
+        
+        # #pen up
+        await self.setpen.call_async(SetPen.Request(off=1))
         
         
-    def toggle(self):
+    def cal_dist(self,wpoints):
+        dist=0
+        #traverse through the list to calculate distance    
+        for i in range(len(wpoints)-1):
+           dist+=np.linalg.norm(wpoints[i+1] - wpoints[i])
+        
+        # dist+=np.linalg.norm(wpoints[0]-wpoints[-1])
+        
+        return dist
+        
+        
+        
+           
+    async def  load_callback(self,request,response):
+        await self.reset.call_async(Empty.Request())
+        
+        wpoints=[]
+        
+        #get points in a list and draw cross as each point
+        for point in request.wpoint:
+            wpoints.append(np.array((point.x,point.y)))
+            await self.draw_x(point.x,point.y)     #Drawing X at each waypoint
+        
+        #take the turtle to first waypoint
+        x=request.wpoint[0].x
+        y=request.wpoint[0].y
+        await self.teleabs.call_async(TeleportAbsolute.Request(x=x,y=y))
+        self.state      = State.STOPPED 
+        
+        
+        response.dist = self.cal_dist(wpoints=wpoints)  #calculatinf straight line distance
+        # response.dist= 2.0
+        return response
+        
+    def toggle_callback(self, request, response):
         if self.state==State.MOVING:
             self.state=State.STOPPED
             self.get_logger().info('Stopping')
         else:
             self.state=State.MOVING
-        
+        return response
     
     
     def timer_callback(self):
@@ -51,4 +129,4 @@ def main(args=None):
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())

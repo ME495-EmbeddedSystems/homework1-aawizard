@@ -8,17 +8,16 @@
   <license>MIT</license>
 
 
+  <exec_depend>ros2launch</exec_depend>
+  <exec_depend>turtle_interfaces</exec_depend>
+
   <build_depend>rclpy</build_depend>
   <exec_depend>rclpy</exec_depend>
 
-  <build_depend>common_interfaces</build_depend>
-  <exec_depend>common_interfaces</exec_depend>
 
   <build_depend>turtlesim</build_depend>
   <exec_depend>turtlesim</exec_depend>
   
-
-
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>

@@ -140,8 +140,8 @@ If the nodes launched from the `launchfile` are not running, you will get incorr
 3. The `switch` service performs the following actions (in sequence):
     1. It `kills` the current turtle
     2. It then respawns a new turtle at `x=[5.000000], y=[4.000000], theta=[-0.703642]`
-4. What happens to the turtle's motion if you use `ros2 param set /mover velocity 10` to change `/mover velocity` to 10? `faster`
+4. What happens to the turtle's motion if you use `ros2 param set /mover velocity 10.0` to change `/mover velocity` to 10? `same`
 5. Use the Linux command `pkill -f /mover` to kill the `/mover` node.
-6. Use the ROS command `ros2 run crazy_turtle mover --ros-args --remap cmd_vel:=/turtle1/cmd_vel` to start the `/mover` node with a velocity of 10. 
+6. Use the ROS command `ros2 run crazy_turtle mover velocity 10.0 --ros-args --remap cmd_vel:=/turtle1/cmd_vel` to start the `/mover` node with a velocity of 10. 
     - Be sure to remap `cmd_vel` to `/turtle1/cmd_vel`.
 7. What happened to the turtle's velocity after relaunching `mover`? `slower}`
