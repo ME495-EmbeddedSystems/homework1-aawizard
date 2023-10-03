@@ -1,4 +1,4 @@
 Waypoint[] wpoint 
 
 ---
-float64 dist
+float32 dist
