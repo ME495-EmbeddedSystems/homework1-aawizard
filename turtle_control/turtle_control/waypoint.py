@@ -5,6 +5,7 @@ from turtle_interfaces.srv import Waypoints
 from enum import Enum, auto
 from std_msgs.msg import String
 import numpy as np
+from geometry_msgs.msg import Twist
 from turtlesim.srv import SetPen, TeleportAbsolute
 from turtlesim.msg import Pose
 import asyncio
@@ -22,7 +23,7 @@ class Waypoint(Node):
         super().__init__('waypoint')
         self.declare_parameter('frequency', 1) 
         self.client_cb_group = ReentrantCallbackGroup()
-     
+        self.vel=Twist()
         self.freq       = self.get_parameter('frequency').get_parameter_value().double_value
     #creating services  
         self.toggle     = self.create_service(Empty, 'toggle', self.toggle_callback)
@@ -36,8 +37,12 @@ class Waypoint(Node):
     #Timer created        
         self.timer      = self.create_timer(self.freq, self.timer_callback)
     #creating a subscriber
-        self.subscription = self.create_subscription(Pose,'/turtle1/pose',self.listener_callback,10)   
+        self.subscriber = self.create_subscription(Pose,'/turtle1/pose',self.listener_callback,10)   
         self.pose=Pose
+        
+        
+    #creating a publisher
+        self.publisher = self.create_publisher(Twist, '/turtle1/cmd_vel', 10)
   
         if not self.reset.wait_for_service(timeout_sec=1.0):
             raise RuntimeError('Timeout waiting for "reset" service to become available')
@@ -119,6 +124,7 @@ class Waypoint(Node):
     
     #callback for toggle service
     def toggle_callback(self, request, response):
+        
         if self.state==State.MOVING:
             self.state=State.STOPPED
             self.get_logger().info('Stopping')
@@ -134,8 +140,12 @@ class Waypoint(Node):
     def timer_callback(self):
         msg = String()
         if self.state==State.MOVING:
+            
             msg.data = 'Issuing Command!'
             self.get_logger().debug('Publishing: "%s"' % msg.data)
+            
+            self.vel.linear.x=2.0
+            self.publisher.publish(self.vel)
 
 
 
