@@ -18,6 +18,7 @@ find_package(turtlesim REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/Waypoints.srv"
   "msg/Waypoint.msg"
+  "msg/ErrorMetric.msg"
   DEPENDENCIES
   turtlesim
   )

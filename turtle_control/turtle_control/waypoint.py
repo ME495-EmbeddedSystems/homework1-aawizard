@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 from std_srvs.srv import Empty
 from turtle_interfaces.srv import Waypoints
+from turtle_interfaces.msg import ErrorMetric
 from enum import Enum, auto
 from std_msgs.msg import String
 import numpy as np
@@ -10,7 +11,7 @@ from turtlesim.srv import SetPen, TeleportAbsolute
 from turtlesim.msg import Pose
 import asyncio
 from rclpy.callback_groups import  ReentrantCallbackGroup
-
+# from util import *
 
 class State(Enum):
 
@@ -21,10 +22,25 @@ class Waypoint(Node):
 
     def __init__(self):
         super().__init__('waypoint')
-        self.declare_parameter('frequency', 1) 
+        
         self.client_cb_group = ReentrantCallbackGroup()
         self.vel=Twist()
+        self.metric=ErrorMetric()
+        self.wpoints=[]
+        self.metric.actual_distance=0.0
+        self.cal_dist=0.0
+        self.curr_wpoint=0        #index of current waypoint
+        self.goal_wpoint=0
+        self.no_wpoint=0
+        self.goal_theta=0.0
+        
+    #creating parameters  
+        self.declare_parameter('frequency', 0.01) 
+        self.declare_parameter('tolerance', 0.05)   
         self.freq       = self.get_parameter('frequency').get_parameter_value().double_value
+        self.tolerance  = self.get_parameter('tolerance').get_parameter_value().double_value
+        if self.freq==0:
+            self.freq=1
     #creating services  
         self.toggle     = self.create_service(Empty, 'toggle', self.toggle_callback)
         self.load       = self.create_service(Waypoints, 'load', self.load_callback)
@@ -35,14 +51,17 @@ class Waypoint(Node):
     #state of the node set as stopped 
         self.state      = State.STOPPED   
     #Timer created        
-        self.timer      = self.create_timer(self.freq, self.timer_callback)
+        self.timer      = self.create_timer(1/self.freq, self.timer_callback)
     #creating a subscriber
         self.subscriber = self.create_subscription(Pose,'/turtle1/pose',self.listener_callback,10)   
         self.pose=Pose
         
         
     #creating a publisher
-        self.publisher = self.create_publisher(Twist, '/turtle1/cmd_vel', 10)
+        self.publisher_vel = self.create_publisher(Twist, '/turtle1/cmd_vel', 10)
+        self.publisher_error = self.create_publisher(ErrorMetric,'/loop_metrics',10)
+        
+        
   
         if not self.reset.wait_for_service(timeout_sec=1.0):
             raise RuntimeError('Timeout waiting for "reset" service to become available')
@@ -54,8 +73,19 @@ class Waypoint(Node):
             raise RuntimeError('Timeout waiting for "teleport_absolute" service to become available')
         
     
-    
-    
+
+    def reset_vel(self):
+        self.vel.linear.x=0.0
+        self.vel.linear.y=0.0
+        self.vel.linear.z=0.0
+        self.vel.angular.x=0.0
+        self.vel.angular.y=0.0
+        self.vel.angular.z=0.0
+        
+    def reset_metric(self):
+        self.metric.complete_loops =0
+        self.metric.actual_distance =0.0
+        self.metric.error=0.0
     
     
     
@@ -83,41 +113,76 @@ class Waypoint(Node):
         # #pen up
         await self.setpen.call_async(SetPen.Request(off=1))
         
-        
-    def cal_dist(self,wpoints):
+      
+    def total_dist(self,wpoints):
         dist=0
         #traverse through the list to calculate distance    
         for i in range(len(wpoints)-1):
            dist+=np.linalg.norm(wpoints[i+1] - wpoints[i])
         
-        # dist+=np.linalg.norm(wpoints[0]-wpoints[-1])
+        dist+=np.linalg.norm(wpoints[0]-wpoints[-1])
         
         return dist
         
+    def get_theta(self):
+        next_wpoint=self.wpoints[self.goal_wpoint]  
+        curr_wpoint=[self.pose.x,self.pose.y]
+        return np.arctan2([next_wpoint[1]-curr_wpoint[1]], [next_wpoint[0]-curr_wpoint[0]])[0]
+        
+        
+    def get_next_waypoint(self):
+        l=self.no_wpoint
+        if self.curr_wpoint==self.goal_wpoint and l>1:
+            self.goal_wpoint+=1
+            
+        else:
+            
+            
+            self.curr_wpoint=self.goal_wpoint
+            if self.goal_wpoint==l-1:
+                self.goal_wpoint=0
+            else:
+                self.goal_wpoint+=1
+                
+            if self.curr_wpoint==0:
+                self.metric.complete_loops+=1
+                self.metric.error = abs((self.metric.complete_loops*self.cal_dist)-self.metric.actual_distance)
+                self.publisher_error.publish(self.metric)
+        
+        next_wpoint=self.wpoints[self.goal_wpoint]  
+        curr_wpoint=[self.pose.x,self.pose.y]
+        print("next wpoint",next_wpoint)
+        self.goal_theta=self.get_theta()
+        
+    
+    
+    def get_dist(self,pose,wpoint):
+        x=pose.x
+        y=pose.y
+        return np.linalg.norm([x,y] - self.wpoints[wpoint])
         
         
     #callback for load service     
     async def  load_callback(self,request,response):
+        
         await self.reset.call_async(Empty.Request())
+        self.reset_metric()
         
-        wpoints=[]
-        
+        # await self.setpen.call_async(SetPen.Request(off=1))
         #get points in a list and draw cross as each point
         for point in request.wpoint:
-            wpoints.append(np.array((point.x,point.y)))
+            self.wpoints.append(np.array((point.x,point.y)))
             await self.draw_x(point.x,point.y)     #Drawing X at each waypoint
         
         #take the turtle to first waypoint
-        # x=request.wpoint[0].x
-        # y=request.wpoint[0].y
-        
-        x=wpoints[0][0]
-        y=wpoints[0][1]
-        await self.teleabs.call_async(TeleportAbsolute.Request(x=x,y=y))
+        self.no_wpoint=len(self.wpoints)
+        await self.teleabs.call_async(TeleportAbsolute.Request(x=self.wpoints[0][0],y=self.wpoints[0][1]))
+        #pen down
+        await self.setpen.call_async(SetPen.Request(off=0))
         self.state      = State.STOPPED 
-        
-        
-        response.dist = self.cal_dist(wpoints=wpoints)  #calculatinf straight line distance
+
+        self.cal_dist=self.total_dist(wpoints=self.wpoints)
+        response.dist = self.cal_dist  #calculatinf straight line distance
         # response.dist= 2.0
         return response
     
@@ -127,9 +192,15 @@ class Waypoint(Node):
         
         if self.state==State.MOVING:
             self.state=State.STOPPED
+            self.reset_vel()
+            
             self.get_logger().info('Stopping')
         else:
-            self.state=State.MOVING
+            if self.no_wpoint==0:
+                self.get_logger().error("No waypoints loaded. Load them with the 'load' service")
+            else:
+                self.state=State.MOVING
+            
         return response
     
     #callback for subscriber
@@ -139,13 +210,39 @@ class Waypoint(Node):
     #callback for timmer
     def timer_callback(self):
         msg = String()
+        msg.data = 'Issuing Command!'
+        
         if self.state==State.MOVING:
             
-            msg.data = 'Issuing Command!'
+            self.vel.linear.y=0.0
             self.get_logger().debug('Publishing: "%s"' % msg.data)
+            # print(self.pose)
+            # print(self.goal_wpoint)
+            dist=self.get_dist(self.pose,self.goal_wpoint)
+            # print("distance =",dist)
+            if dist<=self.tolerance:
+                print(dist)
+                print("reached to ", self.goal_wpoint)
+                theta=self.get_next_waypoint()
+                print(theta)
             
-            self.vel.linear.x=2.0
-            self.publisher.publish(self.vel)
+            else:
+                
+                if abs(self.pose.theta-self.goal_theta)>0.01:
+                    if self.pose.theta-self.goal_theta>0:
+                        self.vel.angular.z=-0.5
+                    else:
+                        self.vel.angular.z=0.5
+                    self.vel.linear.x=0.0
+                else:
+                    # print("changing x")
+                    # print(self.pose.theta,self.goal_theta)
+                    self.vel.angular.z=0.0
+                    self.vel.linear.x=dist
+                    self.metric.actual_distance+= (dist/self.freq)
+
+        self.publisher_vel.publish(self.vel)
+
 
 
 
