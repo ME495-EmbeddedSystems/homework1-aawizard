@@ -41,6 +41,7 @@ class Waypoint(Node):
         self.tolerance  = self.get_parameter('tolerance').get_parameter_value().double_value
         if self.freq==0:
             self.freq=1
+
     #creating services  
         self.toggle     = self.create_service(Empty, 'toggle', self.toggle_callback)
         self.load       = self.create_service(Waypoints, 'load', self.load_callback)
@@ -91,30 +92,38 @@ class Waypoint(Node):
     
     async def draw_x(self,x,y):
         #pen up
-        await self.setpen.call_async(SetPen.Request(off=1))
+        await self.setpen.call_async(SetPen.Request(r=255,g=255,b=255,width=2, off=1))
         #take to lower left corner of the cross
         await self.teleabs.call_async(TeleportAbsolute.Request(x=x-0.25,y=y-0.25))
         #pen down
-        await self.setpen.call_async(SetPen.Request(off=0))
+        await self.setpen.call_async(SetPen.Request(r=255,g=255,b=255,width=2,off=0))
         
         #take to upper right corner of the cross
         await self.teleabs.call_async(TeleportAbsolute.Request(x=x+0.25,y=y+0.25))
         #pen up
-        await self.setpen.call_async(SetPen.Request(off=1))
+        await self.setpen.call_async(SetPen.Request(r=255,g=255,b=255,width=2,off=1))
         
         #take to lower right corner of the cross
         await self.teleabs.call_async(TeleportAbsolute.Request(x=x+0.25,y=y-0.25))
         #pen down
-        await self.setpen.call_async(SetPen.Request(off=0))
+        await self.setpen.call_async(SetPen.Request(r=255,g=255,b=255,width=2,off=0))
         
         #take to upper left corner of the cross
         await self.teleabs.call_async(TeleportAbsolute.Request(x=x-0.25,y=y+0.25))
         
         # #pen up
-        await self.setpen.call_async(SetPen.Request(off=1))
+        await self.setpen.call_async(SetPen.Request(r=255,g=255,b=255,width=2,off=1))
         
       
     def total_dist(self,wpoints):
+        """"Function to calculate straight line loop distance for a list of waypoints
+
+        Args:
+            wpoints (list): list of waypoints
+
+        Returns:
+            float: straight line distance
+        """
         dist=0
         #traverse through the list to calculate distance    
         for i in range(len(wpoints)-1):
@@ -131,6 +140,10 @@ class Waypoint(Node):
         
         
     def get_next_waypoint(self):
+        """When a turtle reaches a waypoint this function is called:
+        
+        it gets the next waypoint and updates the current waypoint 
+        """
         l=self.no_wpoint
         if self.curr_wpoint==self.goal_wpoint and l>1:
             self.goal_wpoint+=1
@@ -151,7 +164,7 @@ class Waypoint(Node):
         
         next_wpoint=self.wpoints[self.goal_wpoint]  
         curr_wpoint=[self.pose.x,self.pose.y]
-        print("next wpoint",next_wpoint)
+
         self.goal_theta=self.get_theta()
         
     
@@ -164,11 +177,20 @@ class Waypoint(Node):
         
     #callback for load service     
     async def  load_callback(self,request,response):
+        """Loads all the waypoints, mark X at each waypoint and return the loop length
+
+        Args:
+            request (Waypoint_list): list of x and y of waypoints
+            response (float): total distance of a loop
+
         
+        """
+        self.reset_vel()
+        self.publisher_vel.publish(self.vel)
         await self.reset.call_async(Empty.Request())
         self.reset_metric()
-        
-        # await self.setpen.call_async(SetPen.Request(off=1))
+        self.reset_vel()
+            
         #get points in a list and draw cross as each point
         for point in request.wpoint:
             self.wpoints.append(np.array((point.x,point.y)))
@@ -178,18 +200,25 @@ class Waypoint(Node):
         self.no_wpoint=len(self.wpoints)
         await self.teleabs.call_async(TeleportAbsolute.Request(x=self.wpoints[0][0],y=self.wpoints[0][1]))
         #pen down
-        await self.setpen.call_async(SetPen.Request(off=0))
+        await self.setpen.call_async(SetPen.Request(r=255,g=255,b=255,width=2,off=0))
         self.state      = State.STOPPED 
 
         self.cal_dist=self.total_dist(wpoints=self.wpoints)
         response.dist = self.cal_dist  #calculatinf straight line distance
-        # response.dist= 2.0
+
         return response
     
     
     #callback for toggle service
     def toggle_callback(self, request, response):
-        
+        """Toggles the turtle state and stops the moving turtle
+
+        Args:
+            request (_Empty):
+            response (Empty): 
+
+      
+        """
         if self.state==State.MOVING:
             self.state=State.STOPPED
             self.reset_vel()
@@ -209,6 +238,16 @@ class Waypoint(Node):
     
     #callback for timmer
     def timer_callback(self):
+        """_summary_
+        This function is run at the frequency of the parameter
+        
+        It moves the turtle from one node to another
+        
+        
+        """
+        
+        
+        
         msg = String()
         msg.data = 'Issuing Command!'
         
@@ -216,29 +255,28 @@ class Waypoint(Node):
             
             self.vel.linear.y=0.0
             self.get_logger().debug('Publishing: "%s"' % msg.data)
-            # print(self.pose)
-            # print(self.goal_wpoint)
+
             dist=self.get_dist(self.pose,self.goal_wpoint)
-            # print("distance =",dist)
+
             if dist<=self.tolerance:
-                print(dist)
-                print("reached to ", self.goal_wpoint)
                 theta=self.get_next_waypoint()
-                print(theta)
+
             
             else:
                 
                 if abs(self.pose.theta-self.goal_theta)>0.01:
                     if self.pose.theta-self.goal_theta>0:
+                       
                         self.vel.angular.z=-0.5
                     else:
                         self.vel.angular.z=0.5
                     self.vel.linear.x=0.0
                 else:
-                    # print("changing x")
-                    # print(self.pose.theta,self.goal_theta)
                     self.vel.angular.z=0.0
                     self.vel.linear.x=dist
+                    if dist<1:
+                        self.vel.linear.x=1.0
+                    
                     self.metric.actual_distance+= (dist/self.freq)
 
         self.publisher_vel.publish(self.vel)
