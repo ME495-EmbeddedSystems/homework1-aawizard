@@ -10,4 +10,4 @@ Author: ${Your Name}
 
 # Observation while playing ros2 bag
 
-There is a noticible offset between the original path and the path of turtle following cmd_vel.
+There is a noticeable offset between the original path and the path of the turtle following cmd_vel.
