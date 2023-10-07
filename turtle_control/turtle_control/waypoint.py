@@ -1,3 +1,28 @@
+"""This file declares a node waypoint which has two sevices, and three clients
+    Task of the node is to take in a list of waypoints, mark them on the screen and go through each one of them in a loop
+    Services:
+        /toggle: changes the state of the turtle
+        /load  : reset the turtle, takes in a list of wayoints and marks them on the screen
+        
+    Clients:
+        /reset                   : used to reset the turtle
+        /turtle1/set_pen         : used to pen up and pen down
+        /turtle1/teleportAbsolute: used to teleport turtle from one point to another to mark "X"
+    Subscriber:
+        /turtle1/pose : reading pose data to get the correct heading of the turtle to the next desired waypoint
+    
+    Publisher:
+        /turtle1/cmd_vel : Giving velocity to turtle at a frequency f
+        /loop_metrics    : The information about the no. of loops travled, actual distance travled by the turtle and error from the optimal path is published on this topic each time turle completes a loop
+        
+        
+    Paraameters:
+    
+        frequency: specifies the frequency at with the timer is 
+        tolerance: the threshold  distance for the turtle to be in viciny of a waypoint to consider it visited
+    """
+
+
 import rclpy
 from rclpy.node import Node
 from std_srvs.srv import Empty
@@ -14,7 +39,9 @@ from rclpy.callback_groups import  ReentrantCallbackGroup
 # from util import *
 
 class State(Enum):
-
+    """ Defines the state of the turtle:
+        moving or stopped
+    """
     MOVING = auto(),
     STOPPED = auto()
     
@@ -76,6 +103,10 @@ class Waypoint(Node):
     
 
     def reset_vel(self):
+        """function to reset velocity of the turtle to 0
+        """
+        
+        
         self.vel.linear.x=0.0
         self.vel.linear.y=0.0
         self.vel.linear.z=0.0
@@ -84,6 +115,8 @@ class Waypoint(Node):
         self.vel.angular.z=0.0
         
     def reset_metric(self):
+        """Resetting the loop metrics to 0
+        """
         self.metric.complete_loops =0
         self.metric.actual_distance =0.0
         self.metric.error=0.0
@@ -91,6 +124,13 @@ class Waypoint(Node):
     
     
     async def draw_x(self,x,y):
+        """A function to mark a "X" at a given coordinate
+
+        Args:
+            x (float): x coordinate of the waypoint
+            y (float): y coordinate of the waypoint
+        """
+        
         #pen up
         await self.setpen.call_async(SetPen.Request(r=255,g=255,b=255,width=2, off=1))
         #take to lower left corner of the cross
@@ -134,6 +174,11 @@ class Waypoint(Node):
         return dist
         
     def get_theta(self):
+        """Function to calculate the heading angle for the turtle from its current location to the next waypoint
+
+        
+        """
+        
         next_wpoint=self.wpoints[self.goal_wpoint]  
         curr_wpoint=[self.pose.x,self.pose.y]
         return np.arctan2([next_wpoint[1]-curr_wpoint[1]], [next_wpoint[0]-curr_wpoint[0]])[0]
@@ -170,6 +215,15 @@ class Waypoint(Node):
     
     
     def get_dist(self,pose,wpoint):
+        """Function to calculaate the distance between the pose of the turtle and given waypoint
+
+        Args:
+            pose (turtlesim/msg/Pose): pose of the turtle, x,y, theta
+            wpoint (list): the x and y coordinate of a waypoint
+
+        Returns:
+            _type_: _description_
+        """
         x=pose.x
         y=pose.y
         return np.linalg.norm([x,y] - self.wpoints[wpoint])
@@ -214,7 +268,7 @@ class Waypoint(Node):
         """Toggles the turtle state and stops the moving turtle
 
         Args:
-            request (_Empty):
+            request (Empty):
             response (Empty): 
 
       
@@ -234,6 +288,11 @@ class Waypoint(Node):
     
     #callback for subscriber
     def listener_callback(self, msg):
+        """A callback function for subscriber that gets the value from turtle1/pose topic and saves to self.pose
+
+        Args:
+            msg (turtlesin/msg/Pose): x,y,theta of the turtle
+        """
         self.pose=msg
     
     #callback for timmer
@@ -286,6 +345,8 @@ class Waypoint(Node):
 
 
 def main(args=None):
+    """ Entry point of the file
+    """
     rclpy.init(args=args)
 
     waypoint_node = Waypoint()
