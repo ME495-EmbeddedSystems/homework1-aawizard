@@ -15,9 +15,9 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='aawizard',
+    maintainer='aawizard', [update maintainer]
     maintainer_email='ananyaagarwal2024@u.northwestern.edu',
-    description='TODO: Package description',
+    description='TODO: Package description', [these fields must match package.xml]
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={

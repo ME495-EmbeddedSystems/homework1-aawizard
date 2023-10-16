@@ -1,0 +1,5 @@
+Part I: -2
+Part II: -1
+     package.xml inconsistent with setup.py
+     Include the type of the services/publisher etc in the comments
+     absolute topic names are used instead of relative

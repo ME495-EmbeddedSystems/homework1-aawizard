@@ -8,12 +8,12 @@ Unless otherwise specified, list the command and all arguments that you passed t
 
 ## Repository Configuration
 1. The `crazy_turtle` git repository consists of the ROS 2 packages `crazy_turtle_interfaces` and `crazy_turtle`.
-2. The package `crazy_turtle_interfaces` is a `cmake` package.
-2. The package `$crazy_turtle` is a `python` package.
+2. The package `crazy_turtle_interfaces` is a `cmake` [ament_cmake] package. [cmake packages are also a package type and is different]
+2. The package `crazy_turtle` is a `python` package. [ament_python]
 
 
 ## Setup Instructions
-1. Build the workspace using `colcon build` so that it is unnecessary to rebuild when python files change.
+1. Build the workspace using `colcon build` [--symlink-install] so that it is unnecessary to rebuild when python files change.
 2. Initialize the ROS environment (i.e., set the necessary ROS environment variables) by executing `source ws/install/setup.bash`
 3. Make sure no other ROS nodes are running prior to starting by inspecting the results of `ros2 node list`.
 3. Run the launchfile `go_crazy_turtle.launch.xml` by executing `ros2 launch crazy_turtle go_crazy_turtle.launch.xml`
@@ -36,6 +36,7 @@ If the nodes launched from the `launchfile` are not running, you will get incorr
 6. Use the ROS command `ros2 topic list` to list the topics
    The output of the command looks like
    ```
+   [/paramater_events]
    /rosout
    /turtle1/cmd_vel
    /turtle1/color_sensor
@@ -100,7 +101,7 @@ If the nodes launched from the `launchfile` are not running, you will get incorr
 
     ```
 
-12. Use the ROS command ` ros2 interface show crazy_turtle_interfaces/srv/Switch` to retrieve a template/prototype for entering parameters for the `/switch` service on the command line.
+12. Use the ROS command ` ros2 interface [proto] crazy_turtle_interfaces/srv/Switch` to retrieve a template/prototype for entering parameters for the `/switch` service on the command line.
     ```
       turtlesim/Pose mixer # use a strange formula to set the new location of the turtle
          float32 x
@@ -140,9 +141,9 @@ If the nodes launched from the `launchfile` are not running, you will get incorr
     ```
 3. The `switch` service performs the following actions (in sequence):
     1. It `kills` the current turtle
-    2. It then respawns a new turtle at `x=[5.000000], y=[4.000000], theta=[-0.703642]`
+    2. It then respawns a new turtle at `x=[5.000000], y=[4.000000], theta=[-0.703642]` [The location depends on the inputs to the switch service]
 4. What happens to the turtle's motion if you use `ros2 param set /mover velocity 10.0` to change `/mover velocity` to 10? `same`
 5. Use the Linux command `pkill -f /mover` to kill the `/mover` node.
 6. Use the ROS command `ros2 run crazy_turtle mover velocity 10.0 --ros-args --remap cmd_vel:=/turtle1/cmd_vel` to start the `/mover` node with a velocity of 10. 
     - Be sure to remap `cmd_vel` to `/turtle1/cmd_vel`.
-7. What happened to the turtle's velocity after relaunching `mover`? `slower}`
+7. What happened to the turtle's velocity after relaunching `mover`? `slower}` [faster]

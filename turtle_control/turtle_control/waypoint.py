@@ -1,5 +1,5 @@
 """This file declares a node waypoint which has two sevices, and three clients
-    Task of the node is to take in a list of waypoints, mark them on the screen and go through each one of them in a loop
+    ask of the node is to take in a list of waypoints, mark them on the screen and go through each one of them in a loop
     Services:
         /toggle: changes the state of the turtle
         /load  : reset the turtle, takes in a list of wayoints and marks them on the screen
@@ -86,7 +86,7 @@ class Waypoint(Node):
         
         
     #creating a publisher
-        self.publisher_vel = self.create_publisher(Twist, '/turtle1/cmd_vel', 10)
+        self.publisher_vel = self.create_publisher(Twist, '/turtle1/cmd_vel', 10) # absolute topic name
         self.publisher_error = self.create_publisher(ErrorMetric,'/loop_metrics',10)
         
         
@@ -306,13 +306,14 @@ class Waypoint(Node):
         """
         
         
-        
+        # [No need for this to be a string, can just use a python string]
         msg = String()
         msg.data = 'Issuing Command!'
         
         if self.state==State.MOVING:
             
             self.vel.linear.y=0.0
+            # Use python fstrings f'Publishing: {msg.data}'
             self.get_logger().debug('Publishing: "%s"' % msg.data)
 
             dist=self.get_dist(self.pose,self.goal_wpoint)
@@ -354,7 +355,6 @@ def main(args=None):
     rclpy.spin(waypoint_node)
     waypoint_node.destroy_node()
     rclpy.shutdown()
-
 
 if __name__ == '__main__':
     asyncio.run(main())
